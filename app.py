@@ -168,7 +168,7 @@ def decrypt():
         except:
             print("Unexpected error:", sys.exc_info()[0])
 
-         print("Fixe3")
+        print("Fixe3")
 
         for cfrag in bob_cfrags:
             bob_capsule.attach_cfrag(cfrag)
