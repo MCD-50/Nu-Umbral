@@ -146,6 +146,7 @@ def decrypt():
         alice_signing_pubkey = keys.UmbralPublicKey.from_bytes(
             alice_signing_pubkey)
 
+        print("Fixe1")
         try:
             capsule.set_correctness_keys(
                 alice_pubkey, bob_pubkey, alice_signing_pubkey)
@@ -159,8 +160,15 @@ def decrypt():
         # by a proxy node in the network. They must be set to use the `decrypt` and
         # `attach_cfrag` funtions.
         bob_capsule = capsule
-        bob_capsule.set_correctness_keys(
-            alice_pubkey, bob_pubkey, alice_signing_pubkey)
+
+        print("Fixe2")
+        try:
+            bob_capsule.set_correctness_keys(
+                alice_pubkey, bob_pubkey, alice_signing_pubkey)
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+
+         print("Fixe3")
 
         for cfrag in bob_cfrags:
             bob_capsule.attach_cfrag(cfrag)
