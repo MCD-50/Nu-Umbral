@@ -13,14 +13,13 @@ import json
 app = Flask(__name__)
 
 
-def setup(): 
+def setup():
     # Setup pyUmbral
     global config
     config = uconfig.set_default_curve()
 
     global mock_kms
     mock_kms = MockNetwork()
-
 
 
 # This app is BOB
@@ -69,7 +68,6 @@ def encrypt():
     alice_privkey = string_to_bytes(alice_privkey)
     alice_privkey = keys.UmbralPrivateKey.from_bytes(alice_privkey)
 
-
     # Encrypt some data
     plaintext = data
     ciphertext, capsule = pre.encrypt(alice_pubkey, plaintext)
@@ -87,7 +85,8 @@ def encrypt():
 @app.route('/grant', methods=["POST"])
 def grant():
     json_data = json.loads(request.data.decode('utf-8'))
-    capsule_id, alice_pubkey, alice_privkey, bob_pubkey = json_data['capsule_id'], json_data['alice_pubkey'], json_data['alice_privkey'], json_data['bob_pubkey']
+    capsule_id, alice_pubkey, alice_privkey, bob_pubkey = json_data['capsule_id'], json_data[
+        'alice_pubkey'], json_data['alice_privkey'], json_data['bob_pubkey']
 
     alice_pubkey = string_to_bytes(alice_pubkey)
     alice_pubkey = keys.UmbralPublicKey.from_bytes(alice_pubkey)
@@ -103,7 +102,8 @@ def grant():
     alice_signer = Signer(alice_signing_privkey)
 
     # Perform split-rekey and grant re-encryption policy
-    alice_kfrags = pre.generate_kfrags(alice_privkey, bob_pubkey, 10, 20, alice_signer)
+    alice_kfrags = pre.generate_kfrags(
+        alice_privkey, bob_pubkey, 10, 20, alice_signer)
 
     policy_id = mock_kms.grant(alice_kfrags)
 
@@ -131,7 +131,6 @@ def decrypt():
 
     capsule = mock_kms.capsule_map[capsule_id]
 
-
     alice_pubkey = string_to_bytes(alice_pubkey)
     alice_pubkey = keys.UmbralPublicKey.from_bytes(alice_pubkey)
 
@@ -145,7 +144,11 @@ def decrypt():
     alice_signing_pubkey = keys.UmbralPublicKey.from_bytes(
         alice_signing_pubkey)
 
-    capsule.set_correctness_keys(alice_pubkey, bob_pubkey, alice_signing_pubkey)
+    try:
+        capsule.set_correctness_keys(
+            alice_pubkey, bob_pubkey, alice_signing_pubkey)
+    except:
+        print "Unexpected error:", sys.exc_info()[0]
 
     # Perform re-encryption request
     bob_cfrags = mock_kms.reencrypt(policy_id, capsule, 10)
@@ -154,8 +157,9 @@ def decrypt():
     # by a proxy node in the network. They must be set to use the `decrypt` and
     # `attach_cfrag` funtions.
     bob_capsule = capsule
-    bob_capsule.set_correctness_keys(alice_pubkey, bob_pubkey, alice_signing_pubkey)
-    
+    bob_capsule.set_correctness_keys(
+        alice_pubkey, bob_pubkey, alice_signing_pubkey)
+
     for cfrag in bob_cfrags:
         bob_capsule.attach_cfrag(cfrag)
     decrypted_data = pre.decrypt(
@@ -164,7 +168,6 @@ def decrypt():
     return jsonify({
         "decrypted_data": decrypted_data.decode('utf-8'),
     })
-
 
 
 if __name__ == '__main__':
