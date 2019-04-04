@@ -130,12 +130,8 @@ def decrypt():
 	# convert to bytes
 	ciphertext = string_to_bytes(ciphertext)
 
-	print(ciphertext)
-
 	try:
 		capsule = mock_kms.capsule_map[capsule_id]
-
-		print(capsule)
 
 		alice_pubkey = string_to_bytes(alice_pubkey)
 		alice_pubkey = keys.UmbralPublicKey.from_bytes(alice_pubkey)
@@ -150,7 +146,6 @@ def decrypt():
 		alice_signing_pubkey = keys.UmbralPublicKey.from_bytes(
 			alice_signing_pubkey)
 
-		print("Fixe1")
 		try:
 			capsule.set_correctness_keys(
 				alice_pubkey, bob_pubkey, alice_signing_pubkey)
@@ -165,14 +160,11 @@ def decrypt():
 		# `attach_cfrag` funtions.
 		bob_capsule = capsule
 
-		print("Fixe2")
 		try:
 			bob_capsule.set_correctness_keys(
 				alice_pubkey, bob_pubkey, alice_signing_pubkey)
 		except:
 			print("Unexpected error:", sys.exc_info()[0])
-
-		print("Fixe3")
 
 		for cfrag in bob_cfrags:
 			bob_capsule.attach_cfrag(cfrag)
@@ -182,8 +174,8 @@ def decrypt():
 		return jsonify({
 			"decrypted_data": decrypted_data.decode('utf-8'),
 		})
-	except:
-		print(sys.exc_info()[0])
+	except Exception as e:
+		print("except", str(e), sys.exc_info()[0])
 		return jsonify({
 			"decrypted_data": None,
 		})
