@@ -9,6 +9,7 @@ from nucypher import MockNetwork
 import msgpack
 import base64
 import json
+import sys
 
 app = Flask(__name__)
 
@@ -129,45 +130,50 @@ def decrypt():
     # convert to bytes
     ciphertext = string_to_bytes(ciphertext)
 
-    capsule = mock_kms.capsule_map[capsule_id]
-
-    alice_pubkey = string_to_bytes(alice_pubkey)
-    alice_pubkey = keys.UmbralPublicKey.from_bytes(alice_pubkey)
-
-    bob_pubkey = string_to_bytes(bob_pubkey)
-    bob_pubkey = keys.UmbralPublicKey.from_bytes(bob_pubkey)
-
-    bob_privkey = string_to_bytes(bob_privkey)
-    bob_privkey = keys.UmbralPrivateKey.from_bytes(bob_privkey)
-
-    alice_signing_pubkey = string_to_bytes(alice_signing_pubkey)
-    alice_signing_pubkey = keys.UmbralPublicKey.from_bytes(
-        alice_signing_pubkey)
-
     try:
-        capsule.set_correctness_keys(
+        capsule = mock_kms.capsule_map[capsule_id]
+
+        alice_pubkey = string_to_bytes(alice_pubkey)
+        alice_pubkey = keys.UmbralPublicKey.from_bytes(alice_pubkey)
+
+        bob_pubkey = string_to_bytes(bob_pubkey)
+        bob_pubkey = keys.UmbralPublicKey.from_bytes(bob_pubkey)
+
+        bob_privkey = string_to_bytes(bob_privkey)
+        bob_privkey = keys.UmbralPrivateKey.from_bytes(bob_privkey)
+
+        alice_signing_pubkey = string_to_bytes(alice_signing_pubkey)
+        alice_signing_pubkey = keys.UmbralPublicKey.from_bytes(
+            alice_signing_pubkey)
+
+        try:
+            capsule.set_correctness_keys(
+                alice_pubkey, bob_pubkey, alice_signing_pubkey)
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+
+        # Perform re-encryption request
+        bob_cfrags = mock_kms.reencrypt(policy_id, capsule, 10)
+        # Simulate capsule handoff, and set the correctness keys.
+        # Correctness keys are used to prove that a cfrag is correct and not modified
+        # by a proxy node in the network. They must be set to use the `decrypt` and
+        # `attach_cfrag` funtions.
+        bob_capsule = capsule
+        bob_capsule.set_correctness_keys(
             alice_pubkey, bob_pubkey, alice_signing_pubkey)
+
+        for cfrag in bob_cfrags:
+            bob_capsule.attach_cfrag(cfrag)
+        decrypted_data = pre.decrypt(
+            ciphertext, bob_capsule, bob_privkey, alice_signing_pubkey)
+
+        return jsonify({
+            "decrypted_data": decrypted_data.decode('utf-8'),
+        })
     except:
-        print ("Unexpected error:", sys.exc_info()[0])
-
-    # Perform re-encryption request
-    bob_cfrags = mock_kms.reencrypt(policy_id, capsule, 10)
-    # Simulate capsule handoff, and set the correctness keys.
-    # Correctness keys are used to prove that a cfrag is correct and not modified
-    # by a proxy node in the network. They must be set to use the `decrypt` and
-    # `attach_cfrag` funtions.
-    bob_capsule = capsule
-    bob_capsule.set_correctness_keys(
-        alice_pubkey, bob_pubkey, alice_signing_pubkey)
-
-    for cfrag in bob_cfrags:
-        bob_capsule.attach_cfrag(cfrag)
-    decrypted_data = pre.decrypt(
-        ciphertext, bob_capsule, bob_privkey, alice_signing_pubkey)
-
-    return jsonify({
-        "decrypted_data": decrypted_data.decode('utf-8'),
-    })
+        return jsonify({
+            "decrypted_data": None,
+        })
 
 
 if __name__ == '__main__':
