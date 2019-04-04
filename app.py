@@ -148,7 +148,7 @@ def decrypt():
         capsule.set_correctness_keys(
             alice_pubkey, bob_pubkey, alice_signing_pubkey)
     except:
-        print "Unexpected error:", sys.exc_info()[0]
+        print ("Unexpected error:", sys.exc_info()[0])
 
     # Perform re-encryption request
     bob_cfrags = mock_kms.reencrypt(policy_id, capsule, 10)
