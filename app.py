@@ -39,9 +39,6 @@ def string_to_bytes(s):
 	sd = s.encode('utf-8')
 	return base64.b64decode(sd)
 
-# Whistleblower is ALICE
-
-
 @app.route('/gen_keys', methods=["GET"])
 def gen_keys():
 	# Generate Keys and setup mock network
@@ -146,11 +143,11 @@ def decrypt():
 		alice_signing_pubkey = keys.UmbralPublicKey.from_bytes(
 			alice_signing_pubkey)
 
-		try:
-			capsule.set_correctness_keys(
-				alice_pubkey, bob_pubkey, alice_signing_pubkey)
-		except:
-			print("Unexpected error:", sys.exc_info()[0])
+		# try:
+		# 	capsule.set_correctness_keys(
+		# 		alice_pubkey, bob_pubkey, alice_signing_pubkey)
+		# except:
+		# 	print("Unexpected error:", sys.exc_info()[0])
 
 		# Perform re-encryption request
 		bob_cfrags = mock_kms.reencrypt(policy_id, capsule, 10)
@@ -168,6 +165,8 @@ def decrypt():
 
 		for cfrag in bob_cfrags:
 			bob_capsule.attach_cfrag(cfrag)
+		
+		print("Here")
 		decrypted_data = pre.decrypt(
 			ciphertext, bob_capsule, bob_privkey, alice_signing_pubkey)
 
