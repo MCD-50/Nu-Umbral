@@ -83,7 +83,6 @@ class MockNetwork(object):
 			raise ValueError(
 				"Not enough KFrags to re-encrypt {} times!".format(M))
 
-		# TODO: using web3py check if is dead?
 		m_kfrags = random.sample(kfrags, M)
 
 		cfrags = list()

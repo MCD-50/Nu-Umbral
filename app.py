@@ -1,3 +1,4 @@
+import traceback
 from flask import Flask, render_template, jsonify, request
 
 from umbral import pre, keys, config, params
@@ -6,10 +7,12 @@ from umbral.curve import SECP256K1
 from umbral.signing import Signer
 
 from nucypher import MockNetwork
+import uuid
 import msgpack
 import base64
 import json
 import sys
+import redis
 
 app = Flask(__name__)
 
@@ -21,6 +24,9 @@ def setup():
 
 	global mock_kms
 	mock_kms = MockNetwork()
+
+	global r
+	r = redis.Redis(host='localhost', port=6379, db=0)
 
 
 # This app is BOB
@@ -38,6 +44,13 @@ def bytes_to_string(b):
 def string_to_bytes(s):
 	sd = s.encode('utf-8')
 	return base64.b64decode(sd)
+
+def dict_to_string(d):
+	return json.dumps(d)
+
+def string_to_dict(s):
+	return json.loads(s)
+
 
 @app.route('/gen_keys', methods=["GET"])
 def gen_keys():
@@ -70,7 +83,12 @@ def encrypt():
 	plaintext = data
 	ciphertext, capsule = pre.encrypt(alice_pubkey, plaintext)
 
-	capsule_id = mock_kms.putcapsule(capsule)
+	# convert capsule to str
+	capsule_id = str(uuid.uuid4())
+	string_capsule = bytes_to_string(capsule.to_bytes())
+	r.set(capsule_id, string_capsule)
+
+	# capsule_id = mock_kms.putcapsule(capsule)
 
 	response = {
 		"ciphertext": bytes_to_string(ciphertext),
@@ -124,11 +142,14 @@ def decrypt():
 	ciphertext, policy_id, capsule_id, alice_pubkey, bob_pubkey, bob_privkey, alice_signing_pubkey = json_data['ciphertext'], json_data[
 		'policy_id'], json_data['capsule_id'], json_data['alice_pubkey'], json_data['bob_pubkey'], json_data['bob_privkey'], json_data['alice_signing_pubkey']
 
+	
 	# convert to bytes
 	ciphertext = string_to_bytes(ciphertext)
-
+	
 	try:
-		capsule = mock_kms.capsule_map[capsule_id]
+
+		capsule_byte = r.get(capsule_id).decode("utf-8")
+		capsule = pre.Capsule.from_bytes(string_to_bytes(capsule_byte), params.UmbralParameters(SECP256K1))
 
 		alice_pubkey = string_to_bytes(alice_pubkey)
 		alice_pubkey = keys.UmbralPublicKey.from_bytes(alice_pubkey)
@@ -143,11 +164,12 @@ def decrypt():
 		alice_signing_pubkey = keys.UmbralPublicKey.from_bytes(
 			alice_signing_pubkey)
 
-		# try:
-		# 	capsule.set_correctness_keys(
-		# 		alice_pubkey, bob_pubkey, alice_signing_pubkey)
-		# except:
-		# 	print("Unexpected error:", sys.exc_info()[0])
+		try:
+			capsule.set_correctness_keys(
+				alice_pubkey, bob_pubkey, alice_signing_pubkey)
+		except:
+			print("Unexpected error:", sys.exc_info()[0])
+			traceback.print_exception(*sys.exc_info()[0])
 
 		# Perform re-encryption request
 		bob_cfrags = mock_kms.reencrypt(policy_id, capsule, 10)
@@ -162,11 +184,11 @@ def decrypt():
 				alice_pubkey, bob_pubkey, alice_signing_pubkey)
 		except:
 			print("Unexpected error:", sys.exc_info()[0])
+			traceback.print_exception(*sys.exc_info()[0])
 
 		for cfrag in bob_cfrags:
 			bob_capsule.attach_cfrag(cfrag)
 		
-		print("Here")
 		decrypted_data = pre.decrypt(
 			ciphertext, bob_capsule, bob_privkey, alice_signing_pubkey)
 
@@ -175,6 +197,7 @@ def decrypt():
 		})
 	except Exception as e:
 		print("except", str(e), sys.exc_info()[0])
+		traceback.print_exception(*sys.exc_info()[0])
 		return jsonify({
 			"decrypted_data": None,
 		})
